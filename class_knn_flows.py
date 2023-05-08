@@ -12,10 +12,26 @@ import seaborn as sns
 # classic data manupulation
 import numpy as np
 import pandas as pd
+from dataclasses import dataclass
 
-
+@dataclass
 class KnnModel:
     """ Select nearest year's predictors based on knn to estimate flow divided by volume """
+    
+    def set_knn_parameters(self,*args,**kwargs):
+        """ Set knn parameters"""
+        knn_model = KNeighborsRegressor(*args,**kwargs)
+    
+        # save model's metadata
+        self.knn_model = knn_model
+        self.info['n_knn_neighbors']:self.knn_model.n_neighbors
+    
+    def scale_knn_model(self):
+        """ model pipeline"""
+        scaler = MinMaxScaler()
+        self.knn_pipeline = make_pipeline(scaler, self.knn_model)  # scaled model
+        self.cv_knn = LeaveOneOut()
+        
     @staticmethod
     def ensemble_generator_qq(f, y_ens):
         y_ens_i = dict()
@@ -25,49 +41,39 @@ class KnnModel:
             y_i = y_ens[[wy]]
             f_i = f.loc[[wy]]
             y_ens_i[wy] = y_i.dot(f_i)
-        return y_ens_i
+            
+        return y_ens_i      
     
-    def forecast_q_ensemble(self,num_neighbors,type_weights="distance",metric="minkowski",p=2):
+    def q_ensemble(self):
         # f:flow/volume
         f_train = self.q_train.div(self.q_train.sum(axis=1), axis=0)
-    
-        # Set knn parameters
-        knn_model = KNeighborsRegressor(
-            n_neighbors = num_neighbors,
-            weights=type_weights,
-            metric="minkowski",
-            p=p,
-            n_jobs=-1,
-        )
-    
-        # save model's metadata
-        self.knn_model = knn_model
-    
-        # model pipeline
-        scaler = MinMaxScaler()
-        model = make_pipeline(scaler, knn_model)  # scaled model
-        cv = LeaveOneOut()
-    
+        
+        
         # evaluate the model in cross-validation (Leave one out)
-        f_cv = cross_val_predict(model, self.X_train, f_train, cv=cv, n_jobs=-1)
+        f_cv = cross_val_predict(self.knn_pipeline, self.X_train, f_train, cv=self.cv_knn, n_jobs=-1)
         f_cv = pd.DataFrame(f_cv, index=list(self.X_train.index), columns=f_train.columns)
     
-        # fit model
-        model.fit(self.X_train, f_train)
+        # fit model for train data
+        self.knn_pipeline.fit(self.X_train, f_train)
     
         # predict hold-out data
-        f_fore = model.predict(self.X_test)
+        f_fore = self.knn_pipeline.predict(self.X_test)
         f_fore = pd.DataFrame(f_fore, index=list(self.X_test.index), columns=f_train.columns)
     
         ## generate ensembles from predicted f
         self.q_ens_cv = self.ensemble_generator_qq(f=f_cv, y_ens=self.y_ens_cv)
         self.q_ens_fore = self.ensemble_generator_qq(f=f_fore, y_ens=self.y_ens_fore)
         #self.compute_q_scores()
-
+        
+    def forecast_q_ensemble(self,*args,**kwargs):
+        self.set_knn_parameters(*args,**kwargs)
+        self.scale_knn_model()
+        self.q_ensemble()
+        self.compute_q_scores()
         
     def compute_q_scores(self):
-        ## metrics
-        # deterministic scores   
+        
+        ### deterministic scores   
         
         # ensemble monthly average
         q_ens_cv_avg = pd.concat(self.q_ens_cv,names=["wy_simple", "ens"])
@@ -80,20 +86,21 @@ class KnnModel:
         
         uni_scores = deterministic_scores(df_univar.q_avg,df_univar.q_train)
         
-        ## ensemble scores
+        ### ensemble scores
         q_ens = pd.concat(self.q_ens_cv,names=["wy_simple", "ens"])
         q_ens = q_ens.melt(ignore_index=False,value_name = "q_ens",var_name="month").reset_index()
         q_ens = q_ens.pivot_table(values='q_ens',index=["wy_simple","month"], columns="ens")
         q_ens = q_ens.reset_index()
         
         q_ens_df = pd.merge(q_ens,q_train_vector)
+        
         q_ens = np.array(q_ens_df.drop(["wy_simple","month","q_train"],axis=1))
         q_train_vector = np.array(q_ens_df["q_train"])
         
         ens_scores = ensemble_scores(q_train_vector,q_ens)
-        self.score_dict_knn = uni_scores | ens_scores
-        
-        
+        scores_knn = uni_scores | ens_scores
+        self.scores_knn = pd.DataFrame.from_dict(scores_knn,orient='index',columns = ['q']).T
+        self.info['scores_q'] = self.scores_knn
         
     def plot_knn_flow(self,export: bool = False) -> None:
         #wym = self.months_forecast_period
@@ -166,8 +173,7 @@ class KnnModel:
         if export:
             predictor_list="_AND_".join(self.predictor_list)
             # figure output filename
-            folder_output = "data_output/pronostico_caudal/Figures/ensemble_forecast/" + \
-                self.catchment_code +"/"
+            folder_output = f"data_output/pronostico_caudal/Figures/ensemble_forecast/{self.catchment_code}/"
             # create folder if it does not exist
             Path(folder_output).mkdir(parents=True, exist_ok=True)
     
@@ -175,3 +181,10 @@ class KnnModel:
                 
             plt.savefig(self.figure_flow_output, bbox_inches='tight')
             
+def main():
+    KnnModel(num_neighbors=6)
+    
+
+if __name__ == '__main__':
+    input_data = main()
+
