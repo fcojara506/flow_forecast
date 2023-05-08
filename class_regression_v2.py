@@ -22,10 +22,12 @@ class RegressionModel(PreprocessedData,KnnModel):
     """Define Regression Model to Forecast volume."""
 
     def set_model_parameters(self,
+                             model_name = "",
                              model_scaler = StandardScaler(),
                              model_regressor = LinearRegression(),
                              cv = LeaveOneOut()):
         """Select model and parameters."""
+        self.model_name = model_name
         self.model_scaler = model_scaler
         self.model = make_pipeline(model_scaler,model_regressor)
         self.cv = cv
@@ -33,6 +35,7 @@ class RegressionModel(PreprocessedData,KnnModel):
     
     @staticmethod    
     def evaluate_model_cv(X, y, model, cv, rownames=True):
+       
 
         # evaluate regression in cross-validation
         rmse = cross_validate(
@@ -75,7 +78,7 @@ class RegressionModel(PreprocessedData,KnnModel):
             y_pred_cv = pd.DataFrame(y_pred_cv).set_index(
                 wy).rename(columns={0: 'y_pred'})
 
-        return y_pred_cv, rmse, estimator
+        return y_pred_cv, rmse,pbias_score
     
     @staticmethod
     def ensemble_generator(y, rmse, n_members):
@@ -205,6 +208,7 @@ class RegressionModel(PreprocessedData,KnnModel):
         self.quantiles_avg_obs = quantiles_obs
         self.text_forecast_range = text_forecast_range
         
+        
         return df_train, y_ens
 
     def _set_label_texts(self):    
@@ -229,12 +233,12 @@ class RegressionModel(PreprocessedData,KnnModel):
                        ax=ax, linewidth=0.5)
         # observations as points x
         p = sns.scatterplot(x="wy_simple", y="value", data=df_train,
-                            marker='x', color='red', s=100, label='Observaciones', ax=ax)
+                            marker='x', color='red', s=100, label='Observations', ax=ax)
 
         # chart setup
         ax.tick_params(labelrotation=90)
         ax.set_xlabel(xlabel)
-        ax.set_ylabel("Volumen (mm)")
+        ax.set_ylabel("Volume (mm)")
         ax.legend(loc='upper right', title="")
         ax.set_ylim(bottom=0)
 
@@ -262,10 +266,10 @@ class RegressionModel(PreprocessedData,KnnModel):
             # initialise subplots
             fig, axs = plt.subplots(2, figsize=(7.5, 6))
             plt.suptitle(self.gauge_name)
-            axs[0].set_title(f"Pronóstico de volumen {self.volume_span_text_v2}. Inicializado {self.date_initialisation}")
+            axs[0].set_title(f"Volume forecast {self.volume_span_text_v2}. Initialised {self.date_initialisation}")
 
             #### chart 1 with forecast in chronological order
-            xlabel = "Año hidrológico (orden cronológico)"
+            xlabel = "Hydrological year (chronological order)"
             
             self.plot_forecast_boxplot_obs_points(
                 y_ens, df_train, xlabel, ax=axs[0])
@@ -281,7 +285,7 @@ class RegressionModel(PreprocessedData,KnnModel):
             df_train = df_train.reindex(meds.index)
 
             ## plot boxplot and obs in new order
-            xlabel = "Año hidrológico (orden por mediana del pronóstico)"
+            xlabel = "Hydrological year (sorted by the median of the forecast ensembles)"
             
             self.plot_forecast_boxplot_obs_points(
                 y_ens, df_train, xlabel, ax=axs[1])
@@ -289,15 +293,15 @@ class RegressionModel(PreprocessedData,KnnModel):
             # initialise subplots
             fig, axs = plt.subplots(1, figsize=(7.5, 4))
             plt.suptitle(self.gauge_name)
-            axs.set_title(f"Pronóstico de volumen {self.volume_span_text_v2}. Inicializado {self.date_initialisation}")
-            xlabel = "Año hidrológico (orden cronológico)"
+            axs.set_title(f"Volume forecast  {self.volume_span_text_v2}. Initialised {self.date_initialisation}")
+            xlabel = "Hydrological year (chronological order)"
             
             self.plot_forecast_boxplot_obs_points(
                 y_ens, df_train, xlabel, ax=axs)
 
         ## add more information to the chart in caption
         caption_text = (
-            f"Pronóstico de volumen (mediana ± rango intercuartil/2)" 
+            f"Forecated volume (median ±  interquantile range/2)" 
             f": {self.text_forecast_range}")
         plt.figtext(0.5, -0.05, caption_text, wrap=True, horizontalalignment='center', fontsize=11)
 

@@ -151,20 +151,20 @@ class KnnModel:
         
         # # keep same handles, edit labels with names of choice
         ax.legend(handles=h,
-                   labels=[f'Año Pronosticado ({self.wy_holdout})', 
-                          f'Promedio [{self.wy_init},{self.wy_end}]',
-                          f'Mediana [{self.wy_init},{self.wy_end}]',
-                          f'Percentil 5% [{self.wy_init},{self.wy_end}]',
-                          f'Percentil 95% [{self.wy_init},{self.wy_end}]',
+                   labels=[f'Target year ({self.wy_holdout})', 
+                          f'Average [{self.wy_init},{self.wy_end}]',
+                          f'Median [{self.wy_init},{self.wy_end}]',
+                          f'Percentile 5% [{self.wy_init},{self.wy_end}]',
+                          f'Percentile 95% [{self.wy_init},{self.wy_end}]',
                           ],
-                   title = "Caudal Estación Fluviométrica",
+                   title = "Stream flow in guage station",
                   frameon=False)
         
         plt.ylim(bottom=0)
         
-        plt.xlabel("Periodo del pronóstico")
-        plt.ylabel("Caudal medio mensual (mm)")
-        plt.title(f"Caudal medio mensual pronosticado. Inicializado {self.date_initialisation}")
+        plt.xlabel("Forecast horizon")
+        plt.ylabel("Mean monthly flow (mm)")
+        plt.title(f"Mean monthly flow. Initialised {self.date_initialisation}")
         plt.suptitle(self.gauge_name)
         
         # handle white spaces in the figure

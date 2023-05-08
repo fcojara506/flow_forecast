@@ -52,10 +52,12 @@ g = sns.lineplot(
 axs.set_ylim(top=1)
 plt.axhline(y=0,color='black')
 
-plt.title("CRPS Skill (reference: climatology)")
-plt.legend(frameon=False,title="Elevación media\n (msnm)",loc="upper left")
+plt.title("Forecast CRPS Skill" )
+plt.xlabel("Month of initialisation of the forecast")
+plt.ylabel("CRPSS (reference: climatology)")
+plt.legend(frameon=False,title="Median elevation (masl)",loc="upper left")
 
-
+plt.savefig("data_output/pronostico_volumen/Figures/metrics/CRPSS_skill.png", bbox_inches='tight')
 
 fig, axs = plt.subplots(1, figsize=(4, 7.5),dpi=600)
 g = sns.scatterplot(
@@ -66,6 +68,14 @@ g = sns.scatterplot(
     palette= "viridis",
     #marker = 's'
     )
+
+plt.xlabel("CRPSS (reference: climatology)")
+plt.ylabel("Catchment latitude (degrees)")
 plt.title("CRPS Skill (reference: climatology)")
-plt.legend(frameon=False,title="Elevación media\n (msnm)",loc="upper left")
+#plt.legend(frameon=False,title="Median elevation\n (masl)",loc="best")
+
+plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1),
+          ncol=4, fancybox=True, shadow=True)
+
+plt.savefig("data_output/pronostico_volumen/Figures/metrics/CRPSS_gaugelat.png", bbox_inches='tight')
 

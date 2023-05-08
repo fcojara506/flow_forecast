@@ -2,7 +2,7 @@
 
 # compare robust regression algorithms on a regression dataset with outliers
 
-from class_regression import RegressionModel
+from class_regression_v2 import RegressionModel
 # Regression models
 from sklearn import linear_model
 from sklearn.cross_decomposition import PLSRegression
@@ -82,23 +82,25 @@ def run_models_cv(month_init,predictors):
     
     
     model_list = get_models()
-    #y_cv, rmse_cv , pbias_cv = dict(),dict(),dict()
+   
     df = dict()
     for name, model in model_list.items():
         
         data.set_model_parameters(model_name=name,
                                   model_scaler=StandardScaler(),
-                                  model_regressor=model,
-                                  cv = LeaveOneOut())
+                                  model_regressor=model)
+       
         alias = (name,predictors_str)
-        data_frames = data.evaluate_model_cv(
-            data.X_train, data.y_train, data.model, data.model_name, cv=data.cv)
+        print(alias)
+        
+        data_frames = data.evaluate_model_cv(data.X_train, data.y_train, data.model, data.cv)
         
         
         df[alias]   = reduce(lambda  left,right: pd.merge(left,right,on=['wy_simple']), data_frames)
 
     df = pd.concat(df, names=["model","pred"]).reset_index()
     
+    data._set_label_texts()
     catchment_code = data.catchment_code
     volume_span_text = data.volume_span_text
     
@@ -141,9 +143,9 @@ def plot_metric_df(metric,metric_df,catchment_code,volume_span_text,month_init,e
 def plot_scatter(df_pred,df_train,catchment_code,volume_span_text,export=False):
     ## figure 3: Predictor vs Prediction for each model
     fig = plt.figure(num=3, figsize=(9, 6), dpi=500)
-    sns.lineplot(x="pr_acum", y="y_pred", hue="model", data=df_pred)
+    sns.lineplot(x="pr_sum_1months", y="y_pred", hue="model", data=df_pred)
     
-    sns.scatterplot(x="pr_acum", y="y_train", data=df_train)
+    sns.scatterplot(x="pr_sum_1months", y="y_train", data=df_train)
     
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),frameon=False, title="Model Regresión")
     plt.title('Predicción (volumen) vs Predictor. Initializado 1 {month_init}')
@@ -157,7 +159,7 @@ def plot_scatter(df_pred,df_train,catchment_code,volume_span_text,export=False):
     plt.close("all")  # close all plots
     
 def test_predictors_months(month_init = 'may'):
-    predictors_list = [["pr_acum", "tem_avg_3mons"],["pr_acum"]]  # list of predictors
+    predictors_list = [["pr_sum_-1months", "tem_mean_3months"],["pr_sum_-1months"]]  # list of predictors
        
     df = dict()
     X_train = dict()
@@ -174,10 +176,10 @@ def test_predictors_months(month_init = 'may'):
     ## figure 2: Percentage bias in cross validation for the different models
     plot_metric_df("pbias", df,catchment_code,volume_span_text,month_init,export = False)
     ## figure 3: Predictor vs Prediction for each model
-    X_train = pd.concat(X_train,names=["pred"]).reset_index()[["wy_simple","pr_acum"]].drop_duplicates()
+    X_train = pd.concat(X_train,names=["pred"]).reset_index()[["wy_simple","pr_sum_1months"]].drop_duplicates()
     y_train = pd.concat(y_train,names=["pred"]).reset_index()[["wy_simple","y_train"]].drop_duplicates()
     df_train = pd.merge(X_train,y_train)
-    df_pred = pd.merge(df[df.pred == "pr_acum"],X_train)
+    df_pred = pd.merge(df[df.pred == "pr_sum_-1months"],X_train)
     
     plot_scatter(df_pred,df_train,catchment_code,volume_span_text,export=False)
     
